@@ -13,7 +13,7 @@ env:
 jobs:
   build:
     name: Build and Release
-    runs-on: windows-latest  # 或者 ubuntu-latest 根据你的需求
+    runs-on: ubuntu-latest  # 或者 ubuntu-latest 根据你的需求
 
     steps:
       - uses: actions/checkout@v4
@@ -21,13 +21,6 @@ jobs:
       # 编译 Rust 项目为 release 模式
       - name: Build Release
         run: cargo build --release
-
-      - name: Install tree
-        run: sudo apt-get install tree
-
-      - name: Print File Tree
-        run: tree target/release
-
 
       # 打印文件树
       - name: Print File Tree
