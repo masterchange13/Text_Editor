@@ -13,7 +13,7 @@ env:
 jobs:
   build:
     name: Build and Release
-    runs-on: ubuntu-latest  # 或者 ubuntu-latest 根据你的需求
+    runs-on: windows-latest  # 或者 ubuntu-latest 根据你的需求
 
     steps:
       - uses: actions/checkout@v4
@@ -25,12 +25,10 @@ jobs:
       # 打印文件树
       - name: Print File Tree
         run: |
-          echo "Current directory:"
-          pwd
-          echo "Listing target directory:"
-          ls target/release
-          # 或者使用 tree 命令，如果在环境中可用
-          # tree target/release
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Listing target directory:"
+          Get-ChildItem -Recurse target/release
 
       # 上传编译生成的二进制文件作为 artifact
       - name: Upload Binary
