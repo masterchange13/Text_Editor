@@ -1,0 +1,52 @@
+name: Rust Release
+
+on:
+  release:
+    types: [published]  # 仅在手动发布 release 时触发
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 编译 Rust 项目为 release 模式
+      - name: Build Release
+        run: cargo build --release
+
+      # 上传编译生成的二进制文件作为 artifact
+      - name: Upload Binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: rust-binary
+          path: target/release/<your-binary-name>  # 替换为实际的二进制文件名
+
+  release:
+    name: Attach Binary to GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 从上一步中下载上传的二进制文件
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: rust-binary
+
+      # 将二进制文件附加到 GitHub Release
+      - name: Upload to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/release/Text_Editor  # 替换为实际的二进制文件名
+          asset_name: Text_Editor  # 替换为实际的二进制文件名
+          asset_content_type: application/octet-stream
