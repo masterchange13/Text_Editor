@@ -24,7 +24,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: rust-binary
-          path: target/release/<your-binary-name>  # 替换为实际的二进制文件名
+          path: target/release/Text_Editor  # 替换为实际的二进制文件名
 
   release:
     name: Attach Binary to GitHub Release
