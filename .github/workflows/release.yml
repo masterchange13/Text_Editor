@@ -13,7 +13,7 @@ env:
 jobs:
   build:
     name: Build and Release
-    runs-on: windows-latest  # 如果你需要构建 .exe
+    runs-on: windows-latest  # 或者 ubuntu-latest 根据你的需求
 
     steps:
       - uses: actions/checkout@v4
@@ -22,34 +22,26 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
+      - name: Install tree
+        run: sudo apt-get install tree
+
+      - name: Print File Tree
+        run: tree target/release
+
+
+      # 打印文件树
+      - name: Print File Tree
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Listing target directory:"
+          ls target/release
+          # 或者使用 tree 命令，如果在环境中可用
+          # tree target/release
+
       # 上传编译生成的二进制文件作为 artifact
       - name: Upload Binary
         uses: actions/upload-artifact@v3
         with:
           name: rust-binary
           path: target/release/Text_Editor.exe  # 确保文件存在
-
-  release:
-    name: Attach Binary to GitHub Release
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # 从上一步中下载上传的二进制文件
-      - name: Download Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: rust-binary
-
-      # 将二进制文件附加到 GitHub Release
-      - name: Upload to GitHub Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/release/Text_Editor.exe  # 替换为实际的二进制文件名
-          asset_name: Text_Editor.exe  # 替换为实际的二进制文件名
-          asset_content_type: application/octet-stream
