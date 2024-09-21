@@ -1,37 +1,60 @@
-use iced::{Element, Sandbox, Settings, Theme, Length};
-use iced::widget::{container, text_editor, TextEditor, Row, Column, Text, horizontal_rule, horizontal_space};
+use iced::{Element, Settings, Theme, Length, Application};
+use iced::widget::{text_editor, TextEditor, Row, Column, Text};
+use iced::{executor, command, Command};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::io::ErrorKind;
+use text_editor::Content;
 
 fn main() -> iced::Result {
     Editor::run(Settings::default())
 }
 
 struct Editor {
-    content: text_editor::Content,
+    content: Content,
+    error: Option<Error>,  // 修正: 指定类型为 Option<Error>
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Edit(text_editor::Action),
+    FileOpened(Result<Arc<String>, Error>),  // 修正: 添加正确的 Result 类型
 }
 
-impl Sandbox for Editor {
+impl Application for Editor {
+    type Executor = executor::Default;
     type Message = Message;
+    type Theme = Theme;
+    type Flags = ();
 
-    fn new() -> Self {
-        Self {
-            content: text_editor::Content::new(),
-        }
+    fn new(_flag: Self::Flags) -> (Self, Command<Message>) {
+        (
+            Self {
+                content: Content::with_text(include_str!("./main.rs")),
+                error: None,
+            },
+            Command::perform(load_file(default_load_file()), Message::FileOpened),  // 修正: 添加逗号
+        )
     }
 
     fn title(&self) -> String {
         String::from("Text Editor")
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Edit(action) => {
                 self.content.perform(action);
+                Command::none()
             }
+            Message::FileOpened(Ok(contents)) => {
+                self.content = Content::with_text(&contents);
+                Command::none()
+            }
+            Message::FileOpened(Err(error)) => {
+                self.error = Some(error);
+                Command::none()
+            }  // 修正: 添加关闭大括号
         }
     }
 
@@ -46,13 +69,28 @@ impl Sandbox for Editor {
 
         let container = Column::new()
             .push(input_content)
-            .padding(20)// 将输入内容添加到列中
-            .push(status_bar);    // 将状态栏添加到列中
+            .padding(20)  // 将输入内容添加到列中
+            .push(status_bar);  // 将状态栏添加到列中
 
         container.into()  // 将容器转换为 Element
     }
 
     fn theme(&self) -> Theme {
-        Theme::Nightfly
+        Theme::Dark  // 使用预定义的主题
     }
+}
+
+#[derive(Debug, Clone)]
+enum Error {
+    IOFailed(ErrorKind),
+}
+
+async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, Error> {
+    tokio::fs::read_to_string(path).await
+        .map(Arc::new)
+        .map_err(|e| Error::IOFailed(e.kind()))
+}
+
+fn default_load_file() -> PathBuf {  // 修正: 返回 PathBuf
+    PathBuf::from(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR")))
 }
