@@ -4,13 +4,16 @@ on:
   release:
     types: [published]  # 仅在手动发布 release 时触发
 
+permissions:
+  contents: write  # 确保有写权限
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
     name: Build and Release
-    runs-on: ubuntu-latest
+    runs-on: windows-latest  # 如果你需要构建 .exe
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +27,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: rust-binary
-          path: target/release/Text_Editor.exe  # 替换为实际的二进制文件名
+          path: target/release/Text_Editor.exe  # 确保文件存在
 
   release:
     name: Attach Binary to GitHub Release
@@ -47,8 +50,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          # 打印文件树
-          asset_path: target/release/Text_Editor.exe  # 确保路径正确
-#          asset_path: target/release/Text_Editor  # 替换为实际的二进制文件名
+          asset_path: target/release/Text_Editor.exe  # 替换为实际的二进制文件名
           asset_name: Text_Editor.exe  # 替换为实际的二进制文件名
           asset_content_type: application/octet-stream
