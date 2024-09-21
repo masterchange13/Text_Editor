@@ -53,6 +53,6 @@ impl Sandbox for Editor {
     }
 
     fn theme(&self) -> Theme {
-        Theme::Dark
+        Theme::Nightfly
     }
 }
