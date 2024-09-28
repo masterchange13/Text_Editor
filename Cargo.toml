@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 iced = { version = "0.12.1", features = ["tokio"] }
 tokio = { version = "1.40.0", features = ["fs"] }
+time = "0.3.36"
+rfd = "0.15.0"

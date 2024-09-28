@@ -1,10 +1,14 @@
+use std::fmt::format;
 use iced::{Element, Settings, Theme, Length, Application};
-use iced::widget::{text_editor, TextEditor, Row, Column, Text};
+use iced::widget::{text_editor, TextEditor, Row, Column, Text, Button};
 use iced::{executor, command, Command};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::io::ErrorKind;
+// use iced::widget::Button;
+use iced::window::Icon;
 use text_editor::Content;
+use rfd::FileDialog;
 
 fn main() -> iced::Result {
     Editor::run(Settings::default())
@@ -63,11 +67,19 @@ impl Application for Editor {
             .on_action(Message::Edit)  // 设置消息处理
             .height(Length::Fill);
 
+        // 顶部状态栏
+        let open_file = Button::new(Text::new("Open File"));
+        let save_file = Button::new(Text::new("Save File"));
+        let top_bar = Row::new()
+            .push(open_file)
+            .push(save_file);
+
         let (line, column) = self.content.cursor_position();
         let position = Text::new(format!("{} : {}", line + 1, column + 1));
         let status_bar = Row::new().push(position); // 创建行并添加位置文本
 
         let container = Column::new()
+            .push(top_bar)
             .push(input_content)
             .padding(20)  // 将输入内容添加到列中
             .push(status_bar);  // 将状态栏添加到列中
@@ -78,7 +90,22 @@ impl Application for Editor {
     fn theme(&self) -> Theme {
         Theme::Dark  // 使用预定义的主题
     }
+
 }
+
+fn save_path() -> Option<String> {
+    if let Some(path) = FileDialog::new()
+        .set_title("Save File")
+        .save_file()
+    {
+        // 使用 .display() 方法
+        Some(path.display().to_string())
+    } else {
+        None
+    }
+}
+
+
 
 #[derive(Debug, Clone)]
 enum Error {
