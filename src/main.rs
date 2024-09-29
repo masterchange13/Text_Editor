@@ -5,8 +5,6 @@ use iced::{executor, command, Command};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::io::ErrorKind;
-// use iced::widget::Button;
-use iced::window::Icon;
 use text_editor::Content;
 use rfd::FileDialog;
 
@@ -17,12 +15,15 @@ fn main() -> iced::Result {
 struct Editor {
     content: Content,
     error: Option<Error>,  // 修正: 指定类型为 Option<Error>
+    
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Edit(text_editor::Action),
     FileOpened(Result<Arc<String>, Error>),  // 修正: 添加正确的 Result 类型
+    OpenFile,
+    SaveFile,
 }
 
 impl Application for Editor {
@@ -59,6 +60,14 @@ impl Application for Editor {
                 self.error = Some(error);
                 Command::none()
             }  // 修正: 添加关闭大括号
+            Message::SaveFile => {
+                save_path();
+                Command::none()
+            }
+            Message::OpenFile => {
+                let ret = open_file();
+                Command::none()
+            }
         }
     }
 
@@ -68,11 +77,16 @@ impl Application for Editor {
             .height(Length::Fill);
 
         // 顶部状态栏
-        let open_file = Button::new(Text::new("Open File"));
-        let save_file = Button::new(Text::new("Save File"));
+        let open_file = Button::new(Text::new("Open")).on_press(Message::OpenFile);
+        // set depart line
+        let depart_line = Text::new(" ");
+        let depart_line2 = Text::new(" ");
+        let save_file = Button::new(Text::new("Save")).on_press(Message::SaveFile);
         let top_bar = Row::new()
             .push(open_file)
-            .push(save_file);
+            .push(depart_line)
+            .push(save_file)
+            .push(depart_line2);
 
         let (line, column) = self.content.cursor_position();
         let position = Text::new(format!("{} : {}", line + 1, column + 1));
@@ -91,6 +105,18 @@ impl Application for Editor {
         Theme::Dark  // 使用预定义的主题
     }
 
+}
+
+fn open_file() -> Option<String> {
+    if let Some(path) = FileDialog::new()
+        .set_title("Open File")
+        .pick_file()
+    {
+        // 使用 .display() 方法
+        Some(path.display().to_string())
+    } else {
+        None
+    }
 }
 
 fn save_path() -> Option<String> {
