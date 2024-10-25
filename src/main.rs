@@ -7,6 +7,8 @@ use std::sync::Arc;
 use std::io::ErrorKind;
 use text_editor::Content;
 use rfd::FileDialog;
+use std::fs::File;
+use std::io::Write;
 
 fn main() -> iced::Result {
     Editor::run(Settings::default())
@@ -15,7 +17,6 @@ fn main() -> iced::Result {
 struct Editor {
     content: Content,
     error: Option<Error>,  // 修正: 指定类型为 Option<Error>
-    
 }
 
 #[derive(Debug, Clone)]
@@ -121,16 +122,27 @@ fn open_file() -> Option<String> {
 
 fn save_path() -> Option<String> {
     if let Some(path) = FileDialog::new()
-        .set_title("Save File")
+        .set_title("Save")
         .save_file()
     {
-        // 使用 .display() 方法
-        Some(path.display().to_string())
+        let file_path = path.display().to_string();
+
+        // 创建或打开文件
+        if let Ok(mut file) = File::create(&path) {
+            // 写入数据到文件
+            if let Err(e) = file.write_all(b"Your content goes here") {
+                eprintln!("Failed to write to file: {}", e);
+                return None;
+            }
+            Some(file_path)
+        } else {
+            eprintln!("Failed to create file.");
+            None
+        }
     } else {
         None
     }
 }
-
 
 
 #[derive(Debug, Clone)]
