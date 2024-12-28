@@ -23,6 +23,7 @@ use iced::widget::text_editor::Action::Edit;
 use std::path::{Path, PathBuf};
 use std::io::ErrorKind;
 use std::sync::Arc;
+use iced::window::spawn;
 use log::error;
 
 fn main() -> iced::Result {
@@ -31,13 +32,14 @@ fn main() -> iced::Result {
 
 struct Editor {
     content: text_editor::Content,
-    error: Option<Error>
+    error: Option<Error>,
+    path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Edit(text_editor::Action),
-    FileOpened(Result<Arc<String>, Error>),
+    FileOpened(Result<(PathBuf, Arc<String>), Error>),
     Open,
     New,
 }
@@ -54,6 +56,7 @@ impl Application for Editor {
                 // content: text_editor::Content::with_text(include_str!("./main.rs")),
                 content: text_editor::Content::new(),
                 error: None,
+                path: None,
             },
             Command::perform(load_file(default_load_file()), Message::FileOpened)
         )
@@ -69,8 +72,9 @@ impl Application for Editor {
                 self.content.perform(action);
                 Command::none()
             },
-            Message::FileOpened(Ok(contents)) => {
+            Message::FileOpened(Ok((path, contents))) => {
                 self.content = text_editor::Content::with_text(&contents);
+                self.path = Some(path);
                 Command::none()
             },
             Message::FileOpened(Err(error)) => {
@@ -91,14 +95,22 @@ impl Application for Editor {
         let controls = row!(
             button("Open").on_press(Message::Open),
             button("New").on_press(Message::New),
-        );
+        ).spacing(2);
         let input_content = text_editor(&self.content).on_action(Message::Edit).height(Length::Fill);
 
         let position = {
             let (line, column) = &self.content.cursor_position();
             text(format!("row:{}, col:{}", line+1, column+1))
         };
-        let status_bar = row!(horizontal_space(), position);
+        let file_path = if let Some(Error::IOFailed(error)) = self.error.as_ref(){
+            text(error.to_string())
+        } else {
+            match self.path.as_deref().and_then(Path::to_str) {
+                Some(path) => text(path).size(15),
+                None => text("Untitled").size(15)
+            }
+        };
+        let status_bar = row!(file_path, horizontal_space(), position);
 
         container(column!(controls, input_content, status_bar)).padding(10).into()
     }
@@ -114,17 +126,18 @@ enum Error{
     DialogClosed,
 }
 // &str String pathBuf ...
-async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, Error> {
-    tokio::fs::read_to_string(path).await
+async fn load_file(path: impl AsRef<Path>) -> Result<(PathBuf, Arc<String>), Error> {
+    let contents = tokio::fs::read_to_string(path.as_ref()).await
         .map(Arc::new)
-        .map_err(|error| Error::IOFailed(error.kind()))
+        .map_err(|error| Error::IOFailed(error.kind()))?;
+    Ok((path.as_ref().to_path_buf(), contents))
 }
 
 fn default_load_file() ->PathBuf {
     PathBuf::from(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR")))
 }
 
-async fn pick_file() -> Result<Arc<String>, Error> {
+async fn pick_file() -> Result<(PathBuf, Arc<String>), Error> {
     let file_path = rfd::AsyncFileDialog::new().set_title("choose file").pick_file().await
         .ok_or(Error::DialogClosed)
         .map(|fileHandle|fileHandle.path().to_owned())?;
