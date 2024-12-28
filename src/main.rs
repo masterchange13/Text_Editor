@@ -23,6 +23,7 @@ use iced::widget::text_editor::Action::Edit;
 use std::path::{Path, PathBuf};
 use std::io::ErrorKind;
 use std::sync::Arc;
+use iced::widget::shader::wgpu::CommandEncoderDescriptor;
 use iced::window::spawn;
 use log::error;
 
@@ -42,6 +43,8 @@ enum Message {
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
     Open,
     New,
+    Save,
+    FileSaved(Result<PathBuf, Error>),
 }
 
 impl Application for Editor {
@@ -88,6 +91,18 @@ impl Application for Editor {
                 self.content = text_editor::Content::new();
                 self.path = None;
                 Command::none()
+            },
+            Message::Save => {
+                let contents = self.content.text();
+                Command::perform(save_file(self.path.clone(), contents), Message::FileSaved)
+            },
+            Message::FileSaved(Ok(path)) => {
+                self.path = Some(path);
+                Command::none()
+            },
+            Message::FileSaved(Err(error)) => {
+                self.error = Some(error);
+                Command::none()
             }
         }
     }
@@ -96,6 +111,7 @@ impl Application for Editor {
         let controls = row!(
             button("Open").on_press(Message::Open),
             button("New").on_press(Message::New),
+            button("Save").on_press(Message::Save),
         ).spacing(2);
         let input_content = text_editor(&self.content).on_action(Message::Edit).height(Length::Fill);
 
@@ -143,4 +159,17 @@ async fn pick_file() -> Result<(PathBuf, Arc<String>), Error> {
         .ok_or(Error::DialogClosed)
         .map(|filehandle|filehandle.path().to_owned())?;
     load_file(file_path).await
+}
+
+async fn save_file(path: Option<PathBuf>, contents: String) -> Result<PathBuf, Error> {
+    let path = if let Some(path) = path {
+        path
+    }else {
+        rfd::AsyncFileDialog::new().set_title("save file").save_file().await
+            .ok_or(Error::DialogClosed)
+            .map(|filehandle|filehandle.path().to_owned())?
+    };
+    tokio::fs::write(&path, contents).await
+        .map_err(|error| Error::IOFailed(error.kind()))?;
+    Ok(path)
 }
