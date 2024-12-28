@@ -18,7 +18,7 @@
 **/
 
 use iced::{Element, Length, Sandbox, Settings, Theme, Application, executor, Command};
-use iced::widget::{row, text, text_editor, container, column, horizontal_space};
+use iced::widget::{row, text, text_editor, container, column, horizontal_space, button};
 use iced::widget::text_editor::Action::Edit;
 use std::path::{Path, PathBuf};
 use std::io::ErrorKind;
@@ -38,6 +38,8 @@ struct Editor {
 enum Message {
     Edit(text_editor::Action),
     FileOpened(Result<Arc<String>, Error>),
+    Open,
+    New,
 }
 
 impl Application for Editor {
@@ -74,11 +76,22 @@ impl Application for Editor {
             Message::FileOpened(Err(error)) => {
                 self.error = Some(error);
                 Command::none()
+            },
+            Message::Open => {
+                Command::perform(pick_file(), Message::FileOpened)
+            },
+            Message::New => {
+                self.content = text_editor::Content::new();
+                Command::none()
             }
         }
     }
 
     fn view(&self) -> Element<'_, Message> {
+        let controls = row!(
+            button("Open").on_press(Message::Open),
+            button("New").on_press(Message::New),
+        );
         let input_content = text_editor(&self.content).on_action(Message::Edit).height(Length::Fill);
 
         let position = {
@@ -87,7 +100,7 @@ impl Application for Editor {
         };
         let status_bar = row!(horizontal_space(), position);
 
-        container(column!(input_content, status_bar)).padding(10).into()
+        container(column!(controls, input_content, status_bar)).padding(10).into()
     }
 
     fn theme(&self) -> Theme {
@@ -98,6 +111,7 @@ impl Application for Editor {
 #[derive(Debug, Clone)]
 enum Error{
     IOFailed(ErrorKind),
+    DialogClosed,
 }
 // &str String pathBuf ...
 async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, Error> {
@@ -108,4 +122,11 @@ async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, Error> {
 
 fn default_load_file() ->PathBuf {
     PathBuf::from(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR")))
+}
+
+async fn pick_file() -> Result<Arc<String>, Error> {
+    let file_path = rfd::AsyncFileDialog::new().set_title("choose file").pick_file().await
+        .ok_or(Error::DialogClosed)
+        .map(|fileHandle|fileHandle.path().to_owned())?;
+    load_file(file_path).await
 }
