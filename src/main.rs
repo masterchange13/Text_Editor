@@ -86,6 +86,7 @@ impl Application for Editor {
             },
             Message::New => {
                 self.content = text_editor::Content::new();
+                self.path = None;
                 Command::none()
             }
         }
@@ -140,6 +141,6 @@ fn default_load_file() ->PathBuf {
 async fn pick_file() -> Result<(PathBuf, Arc<String>), Error> {
     let file_path = rfd::AsyncFileDialog::new().set_title("choose file").pick_file().await
         .ok_or(Error::DialogClosed)
-        .map(|fileHandle|fileHandle.path().to_owned())?;
+        .map(|filehandle|filehandle.path().to_owned())?;
     load_file(file_path).await
 }
