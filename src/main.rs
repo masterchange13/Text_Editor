@@ -17,9 +17,13 @@
 @code target:
 **/
 
-use iced::{Element, Length, Sandbox, Settings, Theme};
+use iced::{Element, Length, Sandbox, Settings, Theme, Application, executor, Command};
 use iced::widget::{row, text, text_editor, container, column, horizontal_space};
 use iced::widget::text_editor::Action::Edit;
+use std::path::{Path, PathBuf};
+use std::io::ErrorKind;
+use std::sync::Arc;
+use log::error;
 
 fn main() -> iced::Result {
     Editor::run(Settings::default())
@@ -27,29 +31,50 @@ fn main() -> iced::Result {
 
 struct Editor {
     content: text_editor::Content,
+    error: Option<Error>
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Edit(text_editor::Action),
+    FileOpened(Result<Arc<String>, Error>),
 }
 
-impl Sandbox for Editor {
+impl Application for Editor {
+    type Executor = executor::Default;
     type Message = Message;
+    type Theme = Theme;
+    type Flags = ();
 
-    fn new() -> Self {
-        Self {
-            content: text_editor::Content::new(),
-        }
+    fn new(flags: Self::Flags) -> (Self, Command<Message>) {
+        (
+            Self {
+                // content: text_editor::Content::with_text(include_str!("./main.rs")),
+                content: text_editor::Content::new(),
+                error: None,
+            },
+            Command::perform(load_file(default_load_file()), Message::FileOpened)
+        )
     }
 
     fn title(&self) -> String {
         String::from("Text Editor")
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::Edit(action) => self.content.perform(action),
+            Message::Edit(action) => {
+                self.content.perform(action);
+                Command::none()
+            },
+            Message::FileOpened(Ok(contents)) => {
+                self.content = text_editor::Content::with_text(&contents);
+                Command::none()
+            },
+            Message::FileOpened(Err(error)) => {
+                self.error = Some(error);
+                Command::none()
+            }
         }
     }
 
@@ -68,4 +93,19 @@ impl Sandbox for Editor {
     fn theme(&self) -> Theme {
         Theme::Dark
     }
+}
+
+#[derive(Debug, Clone)]
+enum Error{
+    IOFailed(ErrorKind),
+}
+// &str String pathBuf ...
+async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, Error> {
+    tokio::fs::read_to_string(path).await
+        .map(Arc::new)
+        .map_err(|error| Error::IOFailed(error.kind()))
+}
+
+fn default_load_file() ->PathBuf {
+    PathBuf::from(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR")))
 }
